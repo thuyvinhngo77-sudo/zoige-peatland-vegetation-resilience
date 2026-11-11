@@ -4,14 +4,14 @@
 
 - 13 manuscript-facing analysis and figure scripts.
 - 3 internal helper modules.
-- 2 validation/test scripts.
+- 3 validation/test scripts.
 - 1 top-level workflow launcher.
 - No Google Earth Engine or other JavaScript files.
 
 ## Completed checks
 
-- Parsed all 19 Python files successfully.
-- Ran 8 synthetic drought-analysis unit tests; all passed.
+- Parsed all 20 Python files successfully.
+- Ran 9 synthetic drought-analysis and independent-validation unit tests; all passed.
 - Confirmed that the top-level launcher, independent-validation script and
   reduced-factor XGBoost–SHAP script expose working command-line help.
 - Found no hard-coded local drive paths in the Python source.
@@ -27,9 +27,11 @@ after the linked data deposit is assembled.
 
 ## Author checks before publication
 
-1. Resolve and document the 16-record complete versus 14-record
-   quality-controlled independent-validation datasets.
-2. Select a software license.
-3. Add the final data and software DOI(s).
-4. Verify the regenerated headline values: 2.53, 88.0%, 50.2% and 88.1%.
+1. Select a software license.
+2. Add the final data and software DOI(s).
+3. Verify the regenerated headline values: 2.53, 88.0%, 50.2% and 88.1%.
+
+The independent-validation code now defines the 14 records marked
+`pass_basic_checks` as the primary set and retains all 16 candidates as a
+sensitivity analysis.
 

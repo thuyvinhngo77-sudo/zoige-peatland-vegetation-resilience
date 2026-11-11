@@ -13,6 +13,8 @@ data/processed/
 external_data/
 **/cache/
 **/figures/
+!scripts/figures/
+!scripts/figures/*.py
 **/models/
 **/outputs/
 **/rasters*/

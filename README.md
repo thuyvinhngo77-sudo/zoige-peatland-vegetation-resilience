@@ -27,7 +27,7 @@ run_all.py      one public workflow entry point
 ```
 
 There are 13 manuscript-facing analysis/figure scripts, three internal helper
-modules, two tests and one launcher. The internal modules are implementation
+modules, three test/validation scripts and one launcher. The internal modules are implementation
 dependencies and do not represent additional manuscript analyses.
 
 ## Figure and analysis map
@@ -87,11 +87,13 @@ link this code to a versioned data deposit with stable identifiers.
 
 ## Independent 2025 validation
 
-The underlying workflow contains a complete 16-record temporal test and a
-14-record result after two pre-flagged very high-AGB records were excluded.
-The manuscript currently reports 14 quality-controlled observations. The
-Methods, deposited record-level audit and code outputs must describe this
-choice consistently.
+The primary temporal test uses the 14 records whose pre-existing
+`quality_flag` is `pass_basic_checks`. The complete set of 16 candidate records
+is retained as a sensitivity analysis; the two additional records carry a
+pre-existing review flag. Selection is therefore based on documented field-data
+quality control rather than model predictions or a post-hoc AGB threshold.
+The 14 primary records span eight `same_site_group` values and were not used to
+fit the frozen 136-record model.
 
 ## Before publication
 

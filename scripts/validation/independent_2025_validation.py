@@ -70,7 +70,9 @@ SUPPORTS = {
     "source_center_5x5_150m": 2,
 }
 PRIMARY_SUPPORT = "grid_product_90m"
-HIGH_AGB_SENSITIVITY_THRESHOLD = 800.0
+PRIMARY_QC_FLAG = "pass_basic_checks"
+PRIMARY_SCENARIO = "quality_controlled_primary"
+ALL_RECORDS_SCENARIO = "all_records_sensitivity"
 NODATA = pilot.NODATA
 
 # These gates are fixed before viewing the 2025 predictions. Passing them is
@@ -276,10 +278,12 @@ def metric_values(observed: np.ndarray, predicted: np.ndarray) -> dict[str, floa
 
 def calculate_metrics(predictions: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
+    primary_qc = predictions["independent_qc_pass"].fillna(False).astype(bool)
     scenarios = {
-        "all_records_primary": np.ones(len(predictions), dtype=bool),
-        "exclude_high_agb_sensitivity": predictions["agb_mean_g_m2"] < HIGH_AGB_SENSITIVITY_THRESHOLD,
-        "strict_main95_subgroup": predictions["inside_main95"].fillna(False).astype(bool),
+        PRIMARY_SCENARIO: primary_qc,
+        ALL_RECORDS_SCENARIO: np.ones(len(predictions), dtype=bool),
+        "strict_main95_subgroup": primary_qc
+        & predictions["inside_main95"].fillna(False).astype(bool),
     }
     for support in [PRIMARY_SUPPORT, *SUPPORTS]:
         subset_support = predictions["support"].eq(support)
@@ -306,6 +310,7 @@ def cluster_bootstrap(
 ) -> pd.DataFrame:
     source = predictions[
         predictions["support"].eq(PRIMARY_SUPPORT)
+        & predictions["independent_qc_pass"].fillna(False).astype(bool)
         & np.isfinite(predictions["predicted_agb_g_m2"])
     ].copy()
     groups = source["same_site_group"].dropna().unique().tolist()
@@ -359,25 +364,25 @@ def validation_figure(predictions: pd.DataFrame, metrics: pd.DataFrame) -> None:
         subset = predictions[predictions["support"].eq(support)].dropna(
             subset=["agb_mean_g_m2", "predicted_agb_g_m2"]
         )
-        high = subset["agb_mean_g_m2"] >= HIGH_AGB_SENSITIVITY_THRESHOLD
+        qc_pass = subset["independent_qc_pass"].fillna(False).astype(bool)
         axis.scatter(
-            subset.loc[~high, "agb_mean_g_m2"],
-            subset.loc[~high, "predicted_agb_g_m2"],
+            subset.loc[qc_pass, "agb_mean_g_m2"],
+            subset.loc[qc_pass, "predicted_agb_g_m2"],
             s=42,
             color="#2A7F9E",
             edgecolor="white",
             linewidth=0.6,
-            label="Field records",
+            label="Quality-controlled field records",
         )
         axis.scatter(
-            subset.loc[high, "agb_mean_g_m2"],
-            subset.loc[high, "predicted_agb_g_m2"],
+            subset.loc[~qc_pass, "agb_mean_g_m2"],
+            subset.loc[~qc_pass, "predicted_agb_g_m2"],
             s=54,
             marker="D",
             color="#C65D3B",
             edgecolor="white",
             linewidth=0.6,
-            label="High-AGB sensitivity records",
+            label="QC-review records (sensitivity only)",
         )
         limit = max(500.0, float(np.nanmax(subset[["agb_mean_g_m2", "predicted_agb_g_m2"]].to_numpy())) * 1.06) if len(subset) else 500.0
         axis.plot([0, limit], [0, limit], color="0.35", linestyle="--", linewidth=1)
@@ -390,7 +395,7 @@ def validation_figure(predictions: pd.DataFrame, metrics: pd.DataFrame) -> None:
         axis.spines[["top", "right"]].set_visible(False)
         row = metrics[
             metrics["support"].eq(support)
-            & metrics["scenario"].eq("all_records_primary")
+            & metrics["scenario"].eq(PRIMARY_SCENARIO)
             & metrics["weighting"].eq("record_level")
         ].iloc[0]
         axis.text(
@@ -432,11 +437,11 @@ def build_report(
 ) -> None:
     primary = metrics[
         metrics["support"].eq(PRIMARY_SUPPORT)
-        & metrics["scenario"].eq("all_records_primary")
+        & metrics["scenario"].eq(PRIMARY_SCENARIO)
         & metrics["weighting"].eq("record_level")
     ]
     selected = metrics[
-        metrics["scenario"].eq("all_records_primary")
+        metrics["scenario"].eq(PRIMARY_SCENARIO)
         & metrics["weighting"].eq("record_level")
     ][["support", "n", "pearson_r", "predictive_r_squared", "rmse_g_m2", "mae_g_m2", "bias_g_m2"]]
     report = f"""# 2025年AGB独立验证
@@ -447,7 +452,7 @@ def build_report(
 - 模型：冻结的`Baseline_Peak_PLSR`，20个特征、3个PLS成分；2025样点未参与拟合。
 - 主产品：30 m输入经有效像元3×3中值聚合，输出90 m网格。
 - 2025年缺少与1985-2024 TerraClimate生产栈完全一致的气候输入，因此本轮不伪造Guarded结果，主结果为Peak-only。
-- 主验证保留全部坐标与日期完整记录；AGB≥{HIGH_AGB_SENSITIVITY_THRESHOLD:.0f} g/m²的记录只在附加敏感性分析中排除。
+- 主验证仅使用原始数据中预先标记为`{PRIMARY_QC_FLAG}`的记录；全部候选记录仅用于附加敏感性分析。筛选依据为预先记录的质量标记，而不是模型预测结果或事后AGB阈值。
 
 ## 2025产品质量
 
@@ -505,7 +510,14 @@ def run(n_bootstrap: int, seed: int) -> None:
 
     fields = pd.read_csv(FIELD_PATH)
     fields = fields.drop_duplicates(subset=["sample_id"]).copy()
-    fields["high_agb_sensitivity_flag"] = fields["agb_mean_g_m2"].astype(float) >= HIGH_AGB_SENSITIVITY_THRESHOLD
+    if "quality_flag" not in fields.columns:
+        raise ValueError("The 2025 field table must contain a quality_flag column.")
+    normalized_quality_flag = fields["quality_flag"].astype("string").str.strip().str.lower()
+    fields["independent_qc_pass"] = normalized_quality_flag.eq(PRIMARY_QC_FLAG)
+    if not fields["independent_qc_pass"].any():
+        raise ValueError(
+            f"No 2025 field records have quality_flag={PRIMARY_QC_FLAG!r}."
+        )
 
     grid = sample_raster_values(raster_path, fields)
     main95 = sample_raster_values(MAIN95_PATH, fields).iloc[:, 0]
@@ -543,7 +555,7 @@ def run(n_bootstrap: int, seed: int) -> None:
 
     primary = metrics[
         metrics["support"].eq(PRIMARY_SUPPORT)
-        & metrics["scenario"].eq("all_records_primary")
+        & metrics["scenario"].eq(PRIMARY_SCENARIO)
         & metrics["weighting"].eq("record_level")
     ].iloc[0]
     gates = {
@@ -559,7 +571,11 @@ def run(n_bootstrap: int, seed: int) -> None:
         "model": bundle["experiment"],
         "training_sample_count": bundle["training_sample_count"],
         "2025_field_records_used_for_model_fitting": 0,
-        "2025_field_records_reserved_for_independent_validation": int(len(fields)),
+        "2025_field_records_quality_controlled_primary": int(fields["independent_qc_pass"].sum()),
+        "2025_field_records_all_candidates": int(len(fields)),
+        "2025_field_records_sensitivity_only": int((~fields["independent_qc_pass"]).sum()),
+        "primary_quality_flag": PRIMARY_QC_FLAG,
+        "primary_scenario": PRIMARY_SCENARIO,
         "primary_support": PRIMARY_SUPPORT,
         "screening_thresholds": SCREENING_GATES,
         "screening_gates": gates,
