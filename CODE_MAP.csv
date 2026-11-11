@@ -1,0 +1,10 @@
+manuscript_output,analysis_script,figure_script
+Figure 1,prepared spatial inputs,scripts/figures/fig01_study_area.py
+Figure 2a-b,scripts/validation/boundary_spatial_cv.py,scripts/figures/fig02_validation.py
+Figure 2c,scripts/validation/agb_spatial_cv.py,scripts/figures/fig02_validation.py
+Figure 2d,scripts/validation/independent_2025_validation.py,scripts/figures/fig02_validation.py
+Figures 3-4,scripts/long_term/long_term_dynamics.py,scripts/figures/fig03_04_long_term.py
+Figures 5-6,scripts/drought/run_drought_analysis.py,scripts/figures/fig05_06_drought.py
+Figure 7,scripts/drought/run_drought_analysis.py,scripts/figures/fig07_drought_maps.py
+Figures 8-11,scripts/drivers/xgboost_shap_reduced.py,scripts/figures/fig08_11_trajectory_shap.py
+

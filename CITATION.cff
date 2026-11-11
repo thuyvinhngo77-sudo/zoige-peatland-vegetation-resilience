@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the associated manuscript and the archived software release."
+title: "Code for long term biomass trajectories, vegetation drought resilience and hydroclimatic associations in the Zoige peatlands"
+type: software
+version: 0.1.0
+authors:
+  - family-names: Du
+    given-names: Rongfang
+  - family-names: Xue
+    given-names: Zhenshan
+  - family-names: Li
+    given-names: Yuchao
+  - family-names: An
+    given-names: Yu
+  - family-names: Wang
+    given-names: Qiuling
+  - family-names: Li
+    given-names: Xiaoyu
+  - family-names: Jiang
+    given-names: Ming
+
